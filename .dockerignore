@@ -1,0 +1,21 @@
+# Git
+.git
+.gitignore
+
+# IDE & Editor
+.vscode
+.idea
+*.iml
+
+# Node / Frontend
+frontend/node_modules
+frontend/dist
+frontend/.angular
+
+# Java / Backend
+backend/target
+backend/data
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# Logs & temp
+*.log

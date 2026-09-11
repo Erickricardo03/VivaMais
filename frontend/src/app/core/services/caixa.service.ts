@@ -2,12 +2,13 @@ import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { Caixa, CategoriaDespesa } from '../models/models';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class CaixaService {
-  private apiUrl = 'http://localhost:8080/api/caixa';
+  private apiUrl = `${environment.apiUrl}/caixa`;
 
   caixaAtual = signal<Caixa | null>(null);
 

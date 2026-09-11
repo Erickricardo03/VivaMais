@@ -92,3 +92,28 @@ A API REST fica disponível em `http://localhost:8080/api`, com os principais gr
 | Dashboard | `/api/dashboard` | Resumo geral e faturamento filtrado por período |
 
 Um console web do banco H2 fica disponível em `http://localhost:8080/h2-console` (JDBC URL: `jdbc:h2:file:./data/vivamaisdb`).
+
+## ☁️ Como subir no Render (Deploy)
+
+O projeto está configurado com um `Dockerfile` multi-stage pronto para rodar o Angular e o Spring Boot juntos em 1 único Web Service no **Render** (100% gratuito).
+
+### Opção 1: Deploy com 1 Clique (Render Blueprints)
+1. Crie uma conta ou faça login no [Render.com](https://render.com/).
+2. No painel, clique em **New +** e selecione **Blueprint**.
+3. Conecte sua conta do GitHub e selecione o repositório **VivaMais** (ou o seu fork).
+4. O Render detectará automaticamente o arquivo `render.yaml`.
+5. Clique em **Apply** e aguarde o build e deploy automáticos.
+
+### Opção 2: Deploy Manual (Web Service Docker)
+1. No painel do Render, clique em **New +** > **Web Service**.
+2. Selecione o repositório **VivaMais** no GitHub.
+3. Configure os campos:
+   - **Name**: `vivamais-app` (ou o nome de sua preferência)
+   - **Language / Runtime**: `Docker`
+   - **Branch**: `main` (ou a branch onde você subiu as alterações)
+   - **Plan**: `Free`
+4. Em **Advanced / Environment Variables**, certifique-se de que:
+   - `PORT`: `8080` (o Render injeta o valor automaticamente)
+5. Clique em **Deploy Web Service**.
+6. Assim que o build for concluído, a URL pública (ex: `https://vivamais-app.onrender.com`) estará pronta para uso com o frontend e a API funcionando juntos!
+

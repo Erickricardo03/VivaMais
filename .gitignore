@@ -1,6 +1,7 @@
 # Backend (Maven / Spring Boot)
 backend/target/
 backend/data/
+backend/src/main/resources/static/
 *.class
 *.jar
 !.mvn/wrapper/maven-wrapper.jar
