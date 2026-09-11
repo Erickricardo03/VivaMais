@@ -42,4 +42,4 @@ COPY --from=backend-build /app/backend/target/*.jar /app/app.jar
 ENV PORT=8080
 EXPOSE 8080
 
-ENTRYPOINT ["sh", "-c", "java -Dserver.port=${PORT} -jar /app/app.jar"]
+ENTRYPOINT ["sh", "-c", "java -XX:+UseSerialGC -XX:MaxRAMPercentage=75.0 -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -Xss256k -Dserver.port=${PORT} -jar /app/app.jar"]

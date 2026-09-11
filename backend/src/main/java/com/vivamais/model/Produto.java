@@ -6,7 +6,13 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 
 @Entity
-@Table(name = "produtos")
+@Table(name = "produtos", indexes = {
+    @Index(name = "idx_prod_ativo_nome", columnList = "ativo, nome"),
+    @Index(name = "idx_prod_cod_barras", columnList = "codigoBarras"),
+    @Index(name = "idx_prod_validade", columnList = "ativo, dataValidade"),
+    @Index(name = "idx_prod_estoque", columnList = "ativo, estoqueAtual, estoqueMinimo"),
+    @Index(name = "idx_prod_categoria", columnList = "ativo, categoria")
+})
 public class Produto {
 
     @Id
