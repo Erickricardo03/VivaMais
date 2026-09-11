@@ -1,0 +1,35 @@
+# Backend (Maven / Spring Boot)
+backend/target/
+backend/data/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# Banco de dados local H2
+*.mv.db
+*.trace.db
+
+# Frontend (build output já coberto por frontend/.gitignore, reforçando aqui)
+frontend/dist/
+frontend/node_modules/
+frontend/.angular/
+
+# IDEs e editores
+.idea/
+*.iml
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.log
+
+# Mídia local de testes/depuração (não faz parte do código do projeto)
+*.mp4
+*.mov
+*.avi
+*.mkv
