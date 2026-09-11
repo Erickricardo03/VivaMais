@@ -714,21 +714,33 @@ import { DashboardResumo, FaturamentoPeriodo, AlertaProduto, PontoGrafico } from
 
     .bar-chart-container {
       width: 100%;
+      max-width: 100%;
       height: 220px;
       position: relative;
+      /* Com muitas barras (ex: 30 dias do mês) não sobra espaço para todas
+         encolherem à vontade — em vez de estourar a borda do card, o
+         gráfico ganha rolagem horizontal própria e contida. */
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
     }
 
     .chart-bars {
       display: flex;
       align-items: flex-end;
       height: 100%;
+      min-height: 100%;
+      width: max-content;
+      min-width: 100%;
       gap: 12px;
       border-bottom: 2px solid var(--border);
       padding-bottom: 8px;
+      box-sizing: border-box;
     }
 
     .bar-column {
-      flex: 1;
+      flex: 1 0 40px;
+      min-width: 40px;
       height: 100%;
       display: flex;
       flex-direction: column;
@@ -965,18 +977,14 @@ import { DashboardResumo, FaturamentoPeriodo, AlertaProduto, PontoGrafico } from
         display: none;
       }
 
-      /* O gráfico rola horizontalmente em vez de espremer as barras até ficarem ilegíveis */
-      .bar-chart-container {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-      }
-
+      /* Em telas pequenas as barras ficam um pouco mais estreitas, mas nunca
+         a ponto de virarem ilegíveis — o scroll (já ativo por padrão) cuida do resto. */
       .chart-bars {
-        min-width: max-content;
         padding: 0 4px;
       }
 
       .bar-column {
+        flex-basis: 34px;
         min-width: 34px;
       }
     }
