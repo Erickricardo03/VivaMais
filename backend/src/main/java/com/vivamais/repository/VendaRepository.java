@@ -1,6 +1,7 @@
 package com.vivamais.repository;
 
 import com.vivamais.model.Venda;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,9 +15,15 @@ import java.util.Optional;
 @Repository
 public interface VendaRepository extends JpaRepository<Venda, Long> {
 
+    @EntityGraph(attributePaths = {"itens", "itens.produto", "cliente"})
     List<Venda> findByDataHoraBetweenAndStatusOrderByDataHoraDesc(LocalDateTime inicio, LocalDateTime fim, String status);
 
+    @EntityGraph(attributePaths = {"itens", "itens.produto", "cliente"})
     List<Venda> findTop20ByOrderByDataHoraDesc();
+
+    @Override
+    @EntityGraph(attributePaths = {"itens", "itens.produto", "cliente"})
+    List<Venda> findAll();
 
     Optional<Venda> findByNumeroVenda(String numeroVenda);
 

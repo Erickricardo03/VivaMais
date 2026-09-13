@@ -1011,12 +1011,14 @@ export class DashboardComponent implements OnInit {
   carregando = false;
 
   private faturamentoSub?: Subscription;
+  private cacheFaturamento = new Map<string, FaturamentoPeriodo>();
 
   ngOnInit(): void {
     this.recarregarTudo();
   }
 
   recarregarTudo(): void {
+    this.cacheFaturamento.clear();
     this.carregando = true;
     this.carregarResumo();
     this.carregarFaturamento(this.periodoSelecionado);
@@ -1034,18 +1036,20 @@ export class DashboardComponent implements OnInit {
   }
 
   carregarFaturamento(periodo: string, inicio?: string, fim?: string): void {
-    // Cancela qualquer requisição anterior ainda em andamento: sem isso, ao clicar
-    // rapidamente em dois períodos diferentes, a resposta mais antiga podia chegar
-    // por último e sobrescrever os dados do período mais recente clicado (por isso
-    // parecia que era preciso clicar duas vezes para atualizar).
+    const chaveCache = `${periodo}_${inicio || ''}_${fim || ''}`;
+    if (this.cacheFaturamento.has(chaveCache)) {
+      this.faturamentoDados = this.cacheFaturamento.get(chaveCache)!;
+      this.cdr.detectChanges();
+    } else {
+      this.carregando = true;
+    }
+
     this.faturamentoSub?.unsubscribe();
-    this.carregando = true;
     this.faturamentoSub = this.dashboardService.getFaturamento(periodo, inicio, fim).subscribe({
       next: (res) => {
         this.faturamentoDados = res;
+        this.cacheFaturamento.set(chaveCache, res);
         this.carregando = false;
-        // Força a atualização da tela imediatamente ao receber a resposta, em vez
-        // de esperar o próximo evento (clique, digitação etc.) disparar o Angular.
         this.cdr.detectChanges();
       },
       error: () => {

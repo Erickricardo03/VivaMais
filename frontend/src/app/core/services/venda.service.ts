@@ -2,13 +2,13 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { VendaRequest, VendaResponse } from '../models/models';
-import { apiBaseUrl } from '../api-url';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class VendaService {
-  private apiUrl = `${apiBaseUrl()}/vendas`;
+  private apiUrl = `${environment.apiUrl}/vendas`;
 
   constructor(private http: HttpClient) {}
 
