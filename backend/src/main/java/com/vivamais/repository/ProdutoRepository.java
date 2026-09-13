@@ -19,6 +19,8 @@ public interface ProdutoRepository extends JpaRepository<Produto, Long> {
 
     Optional<Produto> findByCodigoBarrasAndAtivoTrue(String codigoBarras);
 
+    Optional<Produto> findByCodigoBalancaAndAtivoTrue(String codigoBalanca);
+
     @Query("SELECT p FROM Produto p WHERE p.ativo = true AND " +
            "(LOWER(p.nome) LIKE LOWER(CONCAT('%', :termo, '%')) OR " +
            "p.codigoBarras LIKE CONCAT('%', :termo, '%') OR " +

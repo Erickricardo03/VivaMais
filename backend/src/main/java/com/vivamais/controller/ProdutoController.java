@@ -2,6 +2,8 @@ package com.vivamais.controller;
 
 import com.vivamais.dto.AjusteEstoqueDTO;
 import com.vivamais.dto.AlertaProdutoDTO;
+import com.vivamais.dto.LerCodigoBalancaRequest;
+import com.vivamais.dto.LeituraBalancaDTO;
 import com.vivamais.model.Produto;
 import com.vivamais.service.ProdutoService;
 import jakarta.validation.Valid;
@@ -73,5 +75,10 @@ public class ProdutoController {
     @GetMapping("/categorias")
     public ResponseEntity<List<String>> listarCategorias() {
         return ResponseEntity.ok(produtoService.listarCategorias());
+    }
+
+    @PostMapping("/ler-codigo-balanca")
+    public ResponseEntity<LeituraBalancaDTO> lerCodigoBalanca(@Valid @RequestBody LerCodigoBalancaRequest request) {
+        return ResponseEntity.ok(produtoService.lerCodigoBalanca(request.getCodigo()));
     }
 }

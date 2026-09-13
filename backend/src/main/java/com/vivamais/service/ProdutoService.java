@@ -2,6 +2,7 @@ package com.vivamais.service;
 
 import com.vivamais.dto.AjusteEstoqueDTO;
 import com.vivamais.dto.AlertaProdutoDTO;
+import com.vivamais.dto.LeituraBalancaDTO;
 import com.vivamais.model.MovimentacaoEstoque;
 import com.vivamais.model.Produto;
 import com.vivamais.model.TipoMovimentacao;
@@ -10,6 +11,8 @@ import com.vivamais.repository.ProdutoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -21,10 +24,14 @@ public class ProdutoService {
 
     private final ProdutoRepository produtoRepository;
     private final MovimentacaoEstoqueRepository movimentacaoRepository;
+    private final BalancaBarcodeParser balancaBarcodeParser;
 
-    public ProdutoService(ProdutoRepository produtoRepository, MovimentacaoEstoqueRepository movimentacaoRepository) {
+    public ProdutoService(ProdutoRepository produtoRepository,
+                          MovimentacaoEstoqueRepository movimentacaoRepository,
+                          BalancaBarcodeParser balancaBarcodeParser) {
         this.produtoRepository = produtoRepository;
         this.movimentacaoRepository = movimentacaoRepository;
+        this.balancaBarcodeParser = balancaBarcodeParser;
     }
 
     public List<Produto> listarTodos() {
@@ -195,5 +202,38 @@ public class ProdutoService {
 
     public List<String> listarCategorias() {
         return produtoRepository.findCategoriasDistintas();
+    }
+
+    /**
+     * Interpreta um código de barras de etiqueta de balança de precificação, localiza o produto
+     * correspondente pelo código cadastrado (Produto#codigoBalanca) e calcula o peso pesado a
+     * partir do valor total lido e do preço de venda por unidade (KG/G) já cadastrado.
+     */
+    public LeituraBalancaDTO lerCodigoBalanca(String codigoLido) {
+        BalancaBarcodeParser.LeituraBalanca leitura = balancaBarcodeParser.ler(codigoLido);
+
+        Produto produto = produtoRepository.findByCodigoBalancaAndAtivoTrue(leitura.codigoProduto())
+                .orElseThrow(() -> new RuntimeException(
+                        "Nenhum produto cadastrado com o código de balança '" + leitura.codigoProduto() +
+                        "'. Cadastre esse código no produto correspondente em Estoque, ou lance a venda manualmente."));
+
+        if (produto.getPrecoVenda() == null || produto.getPrecoVenda().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException(
+                    "O produto '" + produto.getNome() + "' não tem preço de venda por " + produto.getUnidade() +
+                    " cadastrado, então não é possível calcular o peso. Cadastre o preço em Estoque ou lance a venda manualmente.");
+        }
+
+        BigDecimal peso = leitura.valorTotal().divide(produto.getPrecoVenda(), 3, RoundingMode.HALF_UP);
+
+        LeituraBalancaDTO dto = new LeituraBalancaDTO();
+        dto.setProdutoId(produto.getId());
+        dto.setNomeProduto(produto.getNome());
+        dto.setUnidade(produto.getUnidade());
+        dto.setCodigoProduto(leitura.codigoProduto());
+        dto.setPrecoVenda(produto.getPrecoVenda());
+        dto.setValorLido(leitura.valorTotal());
+        dto.setPesoCalculado(peso);
+
+        return dto;
     }
 }

@@ -216,6 +216,11 @@ import { Produto, AjusteEstoque } from '../../core/models/models';
             </div>
 
             <div class="form-group">
+              <label>Código da Balança (produtos vendidos por peso)</label>
+              <input type="text" [(ngModel)]="produtoEmEdicao.codigoBalanca" name="codigoBalanca" placeholder="Ex: 01580" maxlength="5" />
+            </div>
+
+            <div class="form-group">
               <label>Categoria *</label>
               <select [(ngModel)]="produtoEmEdicao.categoria" name="categoria" required>
                 <option value="Chás e Ervas">Chás e Ervas</option>
@@ -1010,6 +1015,7 @@ export class EstoqueComponent implements OnInit {
     return {
       nome: '',
       codigoBarras: '',
+      codigoBalanca: '',
       categoria: 'Chás e Ervas',
       unidade: 'UN',
       precoCusto: 0,

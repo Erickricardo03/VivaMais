@@ -19,6 +19,12 @@ public class Produto {
     @Column(length = 60)
     private String codigoBarras;
 
+    /** Código do produto cadastrado na balança de precificação (ex: Prix/Toledo), usado para
+     *  reconhecer o produto ao ler a etiqueta de peso pela câmera. Só se aplica a produtos
+     *  vendidos por peso (KG/G). */
+    @Column(length = 20)
+    private String codigoBalanca;
+
     @Column(nullable = false, length = 80)
     private String categoria;
 
@@ -125,6 +131,14 @@ public class Produto {
 
     public void setCodigoBarras(String codigoBarras) {
         this.codigoBarras = codigoBarras;
+    }
+
+    public String getCodigoBalanca() {
+        return codigoBalanca;
+    }
+
+    public void setCodigoBalanca(String codigoBalanca) {
+        this.codigoBalanca = codigoBalanca;
     }
 
     public String getCategoria() {

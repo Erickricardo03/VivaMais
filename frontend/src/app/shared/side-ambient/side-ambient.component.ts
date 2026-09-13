@@ -7,6 +7,10 @@ import { CommonModule } from '@angular/common';
  * quando há espaço sobrando fora do conteúdo (telas largas) e nunca recebe
  * interação — é puramente estético, no estilo usado por produtos SaaS
  * modernos (glows ambientes desfocados em vez de ilustrações literais).
+ *
+ * A largura acompanha o espaço real disponível até a borda do conteúdo
+ * central (max-width: 1440px), sempre parando um pouco antes dela — o
+ * `overflow: hidden` do container garante que nada passe dessa linha.
  */
 @Component({
   selector: 'app-side-ambient',
@@ -22,6 +26,8 @@ import { CommonModule } from '@angular/common';
       <span class="glow glow-1"></span>
       <span class="glow glow-2"></span>
       <span class="glow glow-3"></span>
+      <span class="glow glow-4"></span>
+      <span class="glow glow-5"></span>
     </div>
   `,
   styles: [`
@@ -29,15 +35,18 @@ import { CommonModule } from '@angular/common';
       position: fixed;
       top: 0;
       bottom: 0;
-      width: 220px;
+      /* Metade do espaço vazio fora do conteúdo (1440px centralizado), com uma
+         margem de segurança de 40px que nunca é ultrapassada, para o brilho
+         nunca encostar no texto/cartões do site. */
+      width: clamp(64px, calc((100vw - 1440px) / 2 - 40px), 460px);
       pointer-events: none;
       overflow: hidden;
       z-index: 1;
       display: none;
     }
 
-    /* Só aparece quando sobra espaço fora do conteúdo central (max-width: 1440px) */
-    @media (min-width: 1680px) {
+    /* Só aparece quando sobra espaço real fora do conteúdo central */
+    @media (min-width: 1650px) {
       .side-ambient {
         display: block;
       }
@@ -51,7 +60,7 @@ import { CommonModule } from '@angular/common';
       right: 0;
     }
 
-    /* Linha fina de acento correndo a lateral inteira */
+    /* Linha fina de acento correndo a lateral inteira, coladinha na borda do conteúdo */
     .accent-line {
       position: absolute;
       top: 0;
@@ -60,60 +69,43 @@ import { CommonModule } from '@angular/common';
       background: linear-gradient(
         to bottom,
         transparent 0%,
-        rgba(21, 128, 61, 0.14) 15%,
-        rgba(21, 128, 61, 0.14) 85%,
+        rgba(21, 128, 61, 0.16) 15%,
+        rgba(21, 128, 61, 0.16) 85%,
         transparent 100%
       );
     }
 
-    .side-left .accent-line { left: 46px; }
-    .side-right .accent-line { right: 46px; }
+    .side-left .accent-line { right: 12px; }
+    .side-right .accent-line { left: 12px; }
 
-    /* Brilhos verdes desfocados, flutuando lentamente ao longo da lateral */
+    /* Brilhos verdes desfocados, centralizados na faixa e flutuando lentamente.
+       Ficam mais largos automaticamente quando a faixa é mais larga (telas
+       grandes), sempre contidos pelo overflow:hidden do container. */
     .glow {
       position: absolute;
+      left: 50%;
+      aspect-ratio: 1;
       border-radius: 50%;
-      filter: blur(46px);
-      background: radial-gradient(circle at 35% 35%, rgba(34, 197, 94, 0.4), rgba(21, 128, 61, 0.05) 70%);
-      animation: ambient-float 16s ease-in-out infinite;
+      filter: blur(42px);
+      transform: translateX(-50%);
+      background: radial-gradient(circle at 35% 35%, rgba(34, 197, 94, 0.42), rgba(21, 128, 61, 0.05) 70%);
+      animation: ambient-float 17s ease-in-out infinite;
       will-change: transform, opacity;
     }
 
-    .side-left .glow {
-      left: -70px;
-    }
-
-    .side-right .glow {
-      right: -70px;
-    }
-
-    .glow-1 {
-      width: 220px;
-      height: 220px;
-      top: 4%;
-      animation-delay: 0s;
-    }
-
-    .glow-2 {
-      width: 170px;
-      height: 170px;
-      top: 42%;
-      background: radial-gradient(circle at 40% 40%, rgba(217, 119, 6, 0.16), transparent 70%);
-      animation-delay: -6s;
-      animation-duration: 19s;
-    }
-
+    .glow-1 { width: 92%; top: -4%;  animation-delay: 0s; }
+    .glow-2 { width: 78%; top: 16%;  animation-delay: -4s; animation-duration: 20s; }
     .glow-3 {
-      width: 200px;
-      height: 200px;
-      top: 76%;
-      animation-delay: -11s;
-      animation-duration: 21s;
+      width: 88%; top: 38%;
+      background: radial-gradient(circle at 40% 40%, rgba(217, 119, 6, 0.15), transparent 70%);
+      animation-delay: -8s; animation-duration: 22s;
     }
+    .glow-4 { width: 76%; top: 60%;  animation-delay: -12s; animation-duration: 19s; }
+    .glow-5 { width: 90%; top: 80%;  animation-delay: -16s; animation-duration: 23s; }
 
     @keyframes ambient-float {
-      0%, 100% { transform: translateY(0) scale(1); opacity: 0.55; }
-      50% { transform: translateY(-48px) scale(1.1); opacity: 0.9; }
+      0%, 100% { transform: translateX(-50%) translateY(0) scale(1); opacity: 0.5; }
+      50% { transform: translateX(-50%) translateY(-28px) scale(1.08); opacity: 0.85; }
     }
 
     @media (prefers-reduced-motion: reduce) {

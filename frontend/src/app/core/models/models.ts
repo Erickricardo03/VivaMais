@@ -2,6 +2,7 @@ export interface Produto {
   id?: number;
   nome: string;
   codigoBarras: string;
+  codigoBalanca?: string;
   categoria: string;
   descricao?: string;
   unidade: string;
@@ -171,4 +172,15 @@ export interface Cliente {
   ultimaCompra?: string;
   totalCompras: number;
   valorTotalGasto: number;
+}
+
+/** Resultado da leitura de uma etiqueta de balança, já resolvido para um produto do catálogo. */
+export interface LeituraBalanca {
+  produtoId: number;
+  nomeProduto: string;
+  unidade: string;
+  codigoProduto: string;
+  precoVenda: number;
+  valorLido: number;
+  pesoCalculado: number;
 }

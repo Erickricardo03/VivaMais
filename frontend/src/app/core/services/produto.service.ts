@@ -1,13 +1,14 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Produto, AlertaProduto, AjusteEstoque } from '../models/models';
+import { Produto, AlertaProduto, AjusteEstoque, LeituraBalanca } from '../models/models';
+import { apiBaseUrl } from '../api-url';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ProdutoService {
-  private apiUrl = 'http://localhost:8080/api/produtos';
+  private apiUrl = `${apiBaseUrl()}/produtos`;
 
   constructor(private http: HttpClient) {}
 
@@ -53,5 +54,9 @@ export class ProdutoService {
 
   getCategorias(): Observable<string[]> {
     return this.http.get<string[]>(`${this.apiUrl}/categorias`);
+  }
+
+  lerCodigoBalanca(codigo: string): Observable<LeituraBalanca> {
+    return this.http.post<LeituraBalanca>(`${this.apiUrl}/ler-codigo-balanca`, { codigo });
   }
 }

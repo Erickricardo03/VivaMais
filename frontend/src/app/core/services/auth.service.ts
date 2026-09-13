@@ -2,12 +2,13 @@ import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { LoginResponse } from '../models/models';
+import { apiBaseUrl } from '../api-url';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private apiUrl = 'http://localhost:8080/api/auth';
+  private apiUrl = `${apiBaseUrl()}/auth`;
   private tokenKey = 'vivamais_token';
   private userKey = 'vivamais_user';
 

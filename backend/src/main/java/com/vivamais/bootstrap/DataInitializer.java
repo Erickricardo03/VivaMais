@@ -46,6 +46,18 @@ public class DataInitializer implements CommandLineRunner {
         if (clienteRepository.count() == 0) {
             inicializarClientes();
         }
+        vincularCodigoBalancaDeExemplo();
+    }
+
+    /** Idempotente: garante o código de balança de exemplo mesmo em bancos já existentes
+     *  (onde inicializarProdutos() não roda de novo por já haver produtos cadastrados). */
+    private void vincularCodigoBalancaDeExemplo() {
+        produtoRepository.findByCodigoBarrasAndAtivoTrue("7891000200018").ifPresent(produto -> {
+            if (produto.getCodigoBalanca() == null || produto.getCodigoBalanca().isBlank()) {
+                produto.setCodigoBalanca("01580");
+                produtoRepository.save(produto);
+            }
+        });
     }
 
     private void inicializarUsuarios() {
@@ -73,9 +85,11 @@ public class DataInitializer implements CommandLineRunner {
                 new BigDecimal("6.00"), new BigDecimal("14.90"), 28.0, 8.0, hoje.plusDays(12), "L-HIB2025")); // VALIDADE CRÍTICA (12 dias)
 
         // 2. Grãos, Sementes e Castanhas
-        lista.add(new Produto("Castanha-do-Pará Selecionada", "7891000200018", "Castanhas e Grãos",
+        Produto castanhaPara = new Produto("Castanha-do-Pará Selecionada", "7891000200018", "Castanhas e Grãos",
                 "Castanhas inteiras frescas da Amazônia a granel", "KG",
-                new BigDecimal("58.00"), new BigDecimal("98.00"), 3.5, 8.0, hoje.plusMonths(6), "L-CP2026")); // ESTOQUE BAIXO (3.5 <= 8.0)
+                new BigDecimal("58.00"), new BigDecimal("98.00"), 3.5, 8.0, hoje.plusMonths(6), "L-CP2026"); // ESTOQUE BAIXO (3.5 <= 8.0)
+        castanhaPara.setCodigoBalanca("01580"); // código de exemplo usado para testar a leitura de etiqueta da balança
+        lista.add(castanhaPara);
 
         lista.add(new Produto("Castanha de Caju W1 Torrada sem Sal", "7891000200025", "Castanhas e Grãos",
                 "Castanhas de caju selecionadas de primeira linha", "KG",

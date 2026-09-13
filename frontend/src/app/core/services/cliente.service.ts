@@ -2,12 +2,13 @@ import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { Cliente } from '../models/models';
+import { apiBaseUrl } from '../api-url';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ClienteService {
-  private apiUrl = 'http://localhost:8080/api/clientes';
+  private apiUrl = `${apiBaseUrl()}/clientes`;
 
   clientes = signal<Cliente[]>([]);
 

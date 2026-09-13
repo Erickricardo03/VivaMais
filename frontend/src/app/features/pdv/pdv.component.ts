@@ -1,12 +1,18 @@
-import { Component, ChangeDetectorRef, inject, OnInit } from '@angular/core';
+import { Component, ChangeDetectorRef, ElementRef, ViewChild, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { BrowserMultiFormatReader, IScannerControls } from '@zxing/browser';
+import { BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { ProdutoService } from '../../core/services/produto.service';
 import { VendaService } from '../../core/services/venda.service';
 import { CaixaService } from '../../core/services/caixa.service';
 import { ClienteService } from '../../core/services/cliente.service';
 import { AuthService } from '../../core/services/auth.service';
-import { Produto, FormaPagamento, VendaRequest, VendaResponse, DespesaCaixa, Caixa } from '../../core/models/models';
+import { Produto, FormaPagamento, VendaRequest, VendaResponse, DespesaCaixa, Caixa, LeituraBalanca } from '../../core/models/models';
+
+/** Layout do código de barras da etiqueta de balança: 1 dígito indicador ("2") + 5 dígitos de
+ *  código do produto + 6 dígitos de valor em centavos + 1 dígito verificador = 13 dígitos. */
+const PADRAO_CODIGO_BALANCA = /^2\d{12}$/;
 
 interface ItemCarrinho {
   produto: Produto;
@@ -71,6 +77,11 @@ interface ItemCarrinho {
                 placeholder="Bipe com o leitor ou digite o nome / código de barras (Enter para adicionar)..."
                 autofocus
               />
+              <button type="button" (click)="abrirScanner()" class="btn-scan-camera" title="Escanear com a câmera (produto ou etiqueta da balança)">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9V7a2 2 0 012-2h2M3 15v2a2 2 0 002 2h2m10-14h2a2 2 0 012 2v2m-4 10h2a2 2 0 002-2v-2M7 12h10"/>
+                </svg>
+              </button>
             </div>
 
             <!-- Filtro de Categorias em Chips -->
@@ -346,6 +357,60 @@ interface ItemCarrinho {
               <span>Imprimir Cupom</span>
             </button>
             <button (click)="modalReciboAberto = false" class="btn-secondary">Fechar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal do Scanner de Câmera (produto normal ou etiqueta da balança) -->
+      <div *ngIf="modalScannerAberto" class="modal-backdrop animate-fade-in">
+        <div class="modal-box scanner-modal">
+          <div class="modal-header">
+            <h3 class="modal-title">Escanear Código de Barras</h3>
+            <button (click)="fecharScanner()" class="btn-close-modal">✕</button>
+          </div>
+          <div class="modal-body">
+            <p class="caixa-modal-hint">
+              Aponte a câmera para o código de barras do produto ou para a etiqueta impressa pela balança de pesagem.
+            </p>
+            <div class="scanner-video-box">
+              <video #scannerVideo class="scanner-video" autoplay muted playsinline></video>
+              <div class="scanner-frame"></div>
+            </div>
+            <p *ngIf="scannerErro" class="scanner-erro">{{ scannerErro }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal de Confirmação de Item Pesado (lido da balança) -->
+      <div *ngIf="leituraBalancaPendente" class="modal-backdrop animate-fade-in">
+        <div class="modal-box">
+          <div class="modal-header">
+            <h3 class="modal-title">Confirmar Produto Pesado</h3>
+          </div>
+          <div class="modal-body">
+            <p class="caixa-modal-hint">Confira os dados lidos da etiqueta da balança antes de adicionar ao carrinho.</p>
+            <div class="fechamento-resumo-grid">
+              <div class="resumo-item full-width-item">
+                <span class="resumo-label">Produto</span>
+                <span class="resumo-valor">{{ leituraBalancaPendente.nomeProduto }}</span>
+              </div>
+              <div class="resumo-item">
+                <span class="resumo-label">Peso Lido</span>
+                <span class="resumo-valor">{{ leituraBalancaPendente.pesoCalculado }} {{ leituraBalancaPendente.unidade }}</span>
+              </div>
+              <div class="resumo-item">
+                <span class="resumo-label">Preço por {{ leituraBalancaPendente.unidade }}</span>
+                <span class="resumo-valor">{{ leituraBalancaPendente.precoVenda | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</span>
+              </div>
+              <div class="resumo-item full-width-item">
+                <span class="resumo-label">Valor Total</span>
+                <span class="resumo-valor grand-total">{{ leituraBalancaPendente.valorLido | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</span>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" (click)="cancelarLeituraBalanca()" class="btn-secondary">Cancelar</button>
+              <button type="button" (click)="confirmarLeituraBalanca()" class="btn-primary">Adicionar ao Carrinho</button>
+            </div>
           </div>
         </div>
       </div>
@@ -664,6 +729,50 @@ interface ItemCarrinho {
       gap: 10px;
     }
 
+    .full-width-item {
+      grid-column: 1 / -1;
+    }
+
+    .grand-total {
+      color: var(--primary-dark);
+      font-size: 1.2rem;
+    }
+
+    /* Scanner de câmera */
+    .scanner-video-box {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: #0f172a;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .scanner-video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .scanner-frame {
+      position: absolute;
+      inset: 15% 10%;
+      border: 3px solid rgba(34, 197, 94, 0.85);
+      border-radius: var(--radius-sm);
+      box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.35);
+      pointer-events: none;
+    }
+
+    .scanner-erro {
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+      border-radius: var(--radius-sm);
+      font-size: 0.88rem;
+    }
+
     .resumo-item {
       display: flex;
       flex-direction: column;
@@ -853,7 +962,7 @@ interface ItemCarrinho {
 
     .search-input-wrapper input {
       width: 100%;
-      padding: 14px 16px 14px 48px;
+      padding: 14px 52px 14px 48px;
       border: 2px solid var(--border);
       border-radius: var(--radius-sm);
       font-size: 1rem;
@@ -865,6 +974,30 @@ interface ItemCarrinho {
       outline: none;
       border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.15);
+    }
+
+    .btn-scan-camera {
+      position: absolute;
+      right: 8px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      color: var(--primary);
+      background: var(--primary-soft);
+      flex-shrink: 0;
+    }
+
+    .btn-scan-camera:hover {
+      background: var(--primary);
+      color: #ffffff;
+    }
+
+    .btn-scan-camera svg {
+      width: 20px;
+      height: 20px;
     }
 
     .category-chips {
@@ -1527,13 +1660,15 @@ interface ItemCarrinho {
     }
   `]
 })
-export class PdvComponent implements OnInit {
+export class PdvComponent implements OnInit, OnDestroy {
   produtoService = inject(ProdutoService);
   vendaService = inject(VendaService);
   caixaService = inject(CaixaService);
   clienteService = inject(ClienteService);
   authService = inject(AuthService);
   private cdr = inject(ChangeDetectorRef);
+
+  @ViewChild('scannerVideo') scannerVideoRef?: ElementRef<HTMLVideoElement>;
 
   produtos: Produto[] = [];
   produtosFiltrados: Produto[] = [];
@@ -1572,6 +1707,14 @@ export class PdvComponent implements OnInit {
   valorContadoInput = 0;
   observacoesFechamento = '';
   caixaFechadoResumo: Caixa | null = null;
+
+  // Scanner de câmera (produto normal ou etiqueta de balança)
+  modalScannerAberto = false;
+  scannerErro = '';
+  leituraBalancaPendente: LeituraBalanca | null = null;
+  private codeReader = new BrowserMultiFormatReader(this.criarHintsScanner());
+  private scannerControls?: IScannerControls;
+  private processandoCodigoEscaneado = false;
 
   get caixaAberto(): boolean {
     return this.caixaService.aberto;
@@ -1675,6 +1818,122 @@ export class PdvComponent implements OnInit {
         this.cdr.detectChanges();
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.pararCamera();
+  }
+
+  // ==================== SCANNER DE CÂMERA ====================
+
+  private criarHintsScanner(): Map<DecodeHintType, unknown> {
+    const hints = new Map<DecodeHintType, unknown>();
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+      BarcodeFormat.EAN_13,
+      BarcodeFormat.EAN_8,
+      BarcodeFormat.UPC_A,
+      BarcodeFormat.CODE_128,
+      BarcodeFormat.QR_CODE
+    ]);
+    return hints;
+  }
+
+  abrirScanner(): void {
+    if (!this.caixaAberto) {
+      alert('O caixa está fechado. Abra o caixa antes de vender.');
+      return;
+    }
+    this.scannerErro = '';
+    this.modalScannerAberto = true;
+    // aguarda o *ngIf renderizar o elemento <video> antes de iniciar a câmera
+    setTimeout(() => this.iniciarCamera(), 0);
+  }
+
+  fecharScanner(): void {
+    this.pararCamera();
+    this.modalScannerAberto = false;
+  }
+
+  private async iniciarCamera(): Promise<void> {
+    if (!this.scannerVideoRef) return;
+    try {
+      this.scannerControls = await this.codeReader.decodeFromConstraints(
+        { video: { facingMode: 'environment' } },
+        this.scannerVideoRef.nativeElement,
+        (result) => {
+          if (result) {
+            this.processarCodigoEscaneado(result.getText());
+          }
+          // erros de "nenhum código encontrado neste frame" acontecem a cada frame sem leitura e são esperados
+        }
+      );
+    } catch {
+      this.scannerErro = 'Não foi possível acessar a câmera. Verifique se o navegador tem permissão de câmera para este site.';
+      this.cdr.detectChanges();
+    }
+  }
+
+  private pararCamera(): void {
+    this.scannerControls?.stop();
+    this.scannerControls = undefined;
+  }
+
+  private processarCodigoEscaneado(codigo: string): void {
+    if (this.processandoCodigoEscaneado) return;
+    this.processandoCodigoEscaneado = true;
+    this.pararCamera();
+    this.modalScannerAberto = false;
+
+    if (PADRAO_CODIGO_BALANCA.test(codigo)) {
+      this.produtoService.lerCodigoBalanca(codigo).subscribe({
+        next: (leitura) => {
+          this.leituraBalancaPendente = leitura;
+          this.processandoCodigoEscaneado = false;
+          this.cdr.detectChanges();
+        },
+        error: (err) => {
+          this.processandoCodigoEscaneado = false;
+          alert(err?.error?.message || 'Não foi possível interpretar o código da etiqueta da balança. Tente escanear novamente.');
+          this.cdr.detectChanges();
+        }
+      });
+      return;
+    }
+
+    const produto = this.produtos.find(p => p.codigoBarras === codigo);
+    if (produto) {
+      this.adicionarAoCarrinho(produto);
+    } else {
+      alert(`Nenhum produto encontrado com o código de barras "${codigo}".`);
+    }
+    this.processandoCodigoEscaneado = false;
+    this.cdr.detectChanges();
+  }
+
+  confirmarLeituraBalanca(): void {
+    if (!this.leituraBalancaPendente) return;
+    const leitura = this.leituraBalancaPendente;
+    const produto = this.produtos.find(p => p.id === leitura.produtoId);
+
+    if (!produto) {
+      alert('Este produto não foi encontrado no catálogo carregado. Atualize a página e tente novamente.');
+      this.leituraBalancaPendente = null;
+      return;
+    }
+
+    this.carrinho.push({
+      produto,
+      quantidade: leitura.pesoCalculado,
+      precoUnitario: leitura.precoVenda,
+      subtotal: Math.round(leitura.pesoCalculado * leitura.precoVenda * 100) / 100
+    });
+
+    this.calcularTotais();
+    this.leituraBalancaPendente = null;
+  }
+
+  cancelarLeituraBalanca(): void {
+    this.leituraBalancaPendente = null;
   }
 
   filtrarCatalogo(): void {
