@@ -11,7 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -136,6 +138,18 @@ public class VendaService {
 
     public List<VendaResponseDTO> listarRecentes() {
         return vendaRepository.findTop20ByOrderByDataHoraDesc().stream()
+                .map(this::converterParaResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    /** Vendas concluídas de hoje, mais recentes primeiro, com cliente e itens
+     *  carregados — usado pelo Dashboard para o detalhamento das vendas do dia. */
+    public List<VendaResponseDTO> listarHoje() {
+        LocalDate hoje = LocalDate.now();
+        LocalDateTime inicioHoje = hoje.atStartOfDay();
+        LocalDateTime fimHoje = hoje.atTime(LocalTime.MAX);
+
+        return vendaRepository.findByDataHoraBetweenAndStatusOrderByDataHoraDesc(inicioHoje, fimHoje, "CONCLUIDA").stream()
                 .map(this::converterParaResponseDTO)
                 .collect(Collectors.toList());
     }

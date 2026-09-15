@@ -18,6 +18,26 @@ export interface Produto {
   venceEmBreve?: boolean;
   diasParaVencer?: number;
   statusValidade?: 'VENCIDO' | 'CRITICO' | 'ALERTA' | 'REGULAR' | 'SEM_VALIDADE';
+  vendidoPorPeso?: boolean;
+}
+
+/** Um produto é vendido por peso quando sua unidade de estoque é KG ou G.
+ *  Nesse caso o PDV deve coletar a venda em gramas e converter para a
+ *  unidade de estoque do produto antes de debitar/enviar ao backend. */
+export function isVendidoPorPeso(produto: Produto): boolean {
+  return produto.unidade === 'KG' || produto.unidade === 'G';
+}
+
+/** Converte uma quantidade em GRAMAS para a unidade de estoque do produto
+ *  (KG => divide por 1000, G => mantém o valor). */
+export function gramasParaQuantidadeEstoque(produto: Produto, gramas: number): number {
+  return produto.unidade === 'KG' ? gramas / 1000 : gramas;
+}
+
+/** Converte uma quantidade já expressa na unidade de estoque do produto
+ *  (KG ou G) de volta para gramas, para exibição/edição no PDV. */
+export function quantidadeEstoqueParaGramas(produto: Produto, quantidade: number): number {
+  return produto.unidade === 'KG' ? quantidade * 1000 : quantidade;
 }
 
 export interface AlertaProduto {

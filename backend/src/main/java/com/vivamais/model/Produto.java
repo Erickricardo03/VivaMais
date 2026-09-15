@@ -85,6 +85,13 @@ public class Produto {
         return estoqueAtual != null && estoqueMinimo != null && estoqueAtual <= estoqueMinimo;
     }
 
+    /** Produtos com unidade KG ou G são vendidos por peso: estoque e preço são
+     *  expressos por unidade de peso (kg ou g), em vez de por unidade inteira. */
+    @Transient
+    public boolean isVendidoPorPeso() {
+        return "KG".equals(unidade) || "G".equals(unidade);
+    }
+
     @Transient
     public boolean isVencido() {
         if (dataValidade == null) return false;

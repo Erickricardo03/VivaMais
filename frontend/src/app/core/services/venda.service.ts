@@ -20,6 +20,10 @@ export class VendaService {
     return this.http.get<VendaResponse[]>(this.apiUrl);
   }
 
+  getVendasHoje(): Observable<VendaResponse[]> {
+    return this.http.get<VendaResponse[]>(`${this.apiUrl}/hoje`);
+  }
+
   getVendaById(id: number): Observable<VendaResponse> {
     return this.http.get<VendaResponse>(`${this.apiUrl}/${id}`);
   }

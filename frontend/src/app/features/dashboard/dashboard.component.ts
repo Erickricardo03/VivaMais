@@ -5,7 +5,8 @@ import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { DashboardService } from '../../core/services/dashboard.service';
 import { ProdutoService } from '../../core/services/produto.service';
-import { DashboardResumo, FaturamentoPeriodo, AlertaProduto, PontoGrafico } from '../../core/models/models';
+import { VendaService } from '../../core/services/venda.service';
+import { DashboardResumo, FaturamentoPeriodo, AlertaProduto, PontoGrafico, VendaResponse } from '../../core/models/models';
 
 @Component({
   selector: 'app-dashboard',
@@ -338,6 +339,62 @@ import { DashboardResumo, FaturamentoPeriodo, AlertaProduto, PontoGrafico } from
               <div class="ranking-total">{{ prod.valorTotal | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}</div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Detalhamento das Vendas de Hoje: cliente, produtos e forma de pagamento de cada venda -->
+      <div class="card history-card">
+        <div class="card-title">
+          <div class="title-with-icon">
+            <svg class="title-icon icon-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <span>Vendas de Hoje, Detalhadas</span>
+          </div>
+          <span class="badge badge-info">{{ vendasHoje.length }} venda(s) hoje</span>
+        </div>
+
+        <div class="table-responsive">
+          <table class="custom-table">
+            <thead>
+              <tr>
+                <th>Hora</th>
+                <th>Cliente</th>
+                <th>Produtos Vendidos</th>
+                <th>Forma de Pagamento</th>
+                <th>Valor Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngIf="!vendasHoje.length">
+                <td colspan="5" class="empty-row">Nenhuma venda registrada hoje ainda.</td>
+              </tr>
+
+              <tr *ngFor="let v of vendasHoje">
+                <td>{{ formatarHora(v.dataHora) }}</td>
+                <td>
+                  <strong>{{ v.clienteNome || 'Venda avulsa' }}</strong>
+                </td>
+                <td>
+                  <div class="items-summary">
+                    <span *ngFor="let it of v.itens" class="item-tag">
+                      {{ it.quantidade }}x {{ it.nomeProduto }}
+                    </span>
+                  </div>
+                </td>
+                <td>
+                  <span class="payment-badge" [class.badge-pix]="v.formaPagamento === 'PIX'" [class.badge-dinheiro]="v.formaPagamento === 'DINHEIRO'">
+                    {{ formatarPagamento(v.formaPagamento) }}
+                  </span>
+                </td>
+                <td>
+                  <strong class="text-green" style="font-size: 1.05rem;">
+                    {{ v.valorTotal | currency:'BRL':'symbol':'1.2-2':'pt-BR' }}
+                  </strong>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -694,6 +751,62 @@ import { DashboardResumo, FaturamentoPeriodo, AlertaProduto, PontoGrafico } from
 
     .text-green { color: var(--primary); }
     .text-gold { color: #d97706; }
+    .icon-primary { color: var(--primary); }
+
+    /* Tabela de Vendas Detalhadas de Hoje */
+    .history-card {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .history-card .card-title {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0;
+    }
+
+    .table-responsive {
+      overflow-x: auto;
+    }
+
+    .payment-badge {
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: #f1f5f9;
+      color: var(--text-main);
+      white-space: nowrap;
+    }
+
+    .badge-pix {
+      background: #f0fdf4;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+    }
+
+    .badge-dinheiro {
+      background: #fefce8;
+      color: #854d0e;
+      border: 1px solid #fef08a;
+    }
+
+    .items-summary {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .item-tag {
+      font-size: 0.8rem;
+      color: var(--text-main);
+    }
+
+    .empty-row {
+      text-align: center;
+      padding: 36px;
+      color: var(--text-muted);
+    }
 
     /* Gráfico de Barras Responsivo */
     .chart-wrapper {
@@ -999,11 +1112,13 @@ import { DashboardResumo, FaturamentoPeriodo, AlertaProduto, PontoGrafico } from
 export class DashboardComponent implements OnInit {
   dashboardService = inject(DashboardService);
   produtoService = inject(ProdutoService);
+  vendaService = inject(VendaService);
   private cdr = inject(ChangeDetectorRef);
 
   resumo: DashboardResumo | null = null;
   faturamentoDados: FaturamentoPeriodo | null = null;
   alertasCriticos: AlertaProduto[] = [];
+  vendasHoje: VendaResponse[] = [];
 
   periodoSelecionado = 'MENSAL';
   dataInicioCustom = '';
@@ -1023,6 +1138,32 @@ export class DashboardComponent implements OnInit {
     this.carregarResumo();
     this.carregarFaturamento(this.periodoSelecionado);
     this.carregarAlertas();
+    this.carregarVendasHoje();
+  }
+
+  carregarVendasHoje(): void {
+    this.vendaService.getVendasHoje().subscribe({
+      next: (res) => {
+        this.vendasHoje = res;
+        this.cdr.detectChanges();
+      },
+      error: () => {}
+    });
+  }
+
+  formatarHora(dh?: string): string {
+    if (!dh) return '';
+    return new Date(dh).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  formatarPagamento(fp: string): string {
+    switch (fp) {
+      case 'PIX': return '⚡ PIX';
+      case 'CARTAO_CREDITO': return '💳 Cartão Crédito';
+      case 'CARTAO_DEBITO': return '💳 Cartão Débito';
+      case 'DINHEIRO': return '💵 Dinheiro';
+      default: return fp;
+    }
   }
 
   carregarResumo(): void {

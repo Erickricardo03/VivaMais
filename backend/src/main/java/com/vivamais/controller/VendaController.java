@@ -31,6 +31,11 @@ public class VendaController {
         return ResponseEntity.ok(vendaService.listarRecentes());
     }
 
+    @GetMapping("/hoje")
+    public ResponseEntity<List<VendaResponseDTO>> listarHoje() {
+        return ResponseEntity.ok(vendaService.listarHoje());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<VendaResponseDTO> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(vendaService.buscarPorId(id));

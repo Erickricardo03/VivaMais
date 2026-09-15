@@ -239,30 +239,33 @@ import { Produto, AjusteEstoque } from '../../core/models/models';
               <label>Unidade de Medida</label>
               <select [(ngModel)]="produtoEmEdicao.unidade" name="unidade">
                 <option value="UN">Unidade (UN)</option>
-                <option value="KG">Quilograma (KG)</option>
+                <option value="KG">Quilograma (KG) — vendido por peso, em gramas no PDV</option>
                 <option value="PCT">Pacote (PCT)</option>
                 <option value="POTE">Pote (POTE)</option>
-                <option value="G">Gramas (G)</option>
+                <option value="G">Gramas (G) — vendido por peso, em gramas no PDV</option>
               </select>
+              <span class="field-hint" *ngIf="produtoEmEdicao.unidade === 'KG' || produtoEmEdicao.unidade === 'G'">
+                Produto vendido a granel: preço e estoque abaixo são por {{ produtoEmEdicao.unidade === 'KG' ? 'quilo (kg)' : 'grama (g)' }}. No PDV, o operador informa a venda diretamente em gramas.
+              </span>
             </div>
 
             <div class="form-group">
-              <label>Preço de Custo (R$) *</label>
+              <label>Preço de Custo (R$ {{ (produtoEmEdicao.unidade === 'KG' || produtoEmEdicao.unidade === 'G') ? '/ ' + produtoEmEdicao.unidade : '' }}) *</label>
               <input type="number" step="0.01" [(ngModel)]="produtoEmEdicao.precoCusto" name="precoCusto" required />
             </div>
 
             <div class="form-group">
-              <label>Preço de Venda (R$) *</label>
+              <label>Preço de Venda (R$ {{ (produtoEmEdicao.unidade === 'KG' || produtoEmEdicao.unidade === 'G') ? '/ ' + produtoEmEdicao.unidade : '' }}) *</label>
               <input type="number" step="0.01" [(ngModel)]="produtoEmEdicao.precoVenda" name="precoVenda" required />
             </div>
 
             <div class="form-group">
-              <label>Estoque Atual *</label>
+              <label>Estoque Atual ({{ produtoEmEdicao.unidade }}) *</label>
               <input type="number" step="0.1" [(ngModel)]="produtoEmEdicao.estoqueAtual" name="estoqueAtual" required />
             </div>
 
             <div class="form-group">
-              <label>Estoque Mínimo (Alerta de Reposição) *</label>
+              <label>Estoque Mínimo ({{ produtoEmEdicao.unidade }}) — Alerta de Reposição *</label>
               <input type="number" step="0.1" [(ngModel)]="produtoEmEdicao.estoqueMinimo" name="estoqueMinimo" required />
             </div>
 
@@ -760,6 +763,13 @@ import { Produto, AjusteEstoque } from '../../core/models/models';
     .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
       outline: none;
       border-color: var(--primary);
+    }
+
+    .field-hint {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      line-height: 1.3;
     }
 
     .modal-footer {

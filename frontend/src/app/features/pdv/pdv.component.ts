@@ -8,7 +8,16 @@ import { VendaService } from '../../core/services/venda.service';
 import { CaixaService } from '../../core/services/caixa.service';
 import { ClienteService } from '../../core/services/cliente.service';
 import { AuthService } from '../../core/services/auth.service';
-import { Produto, FormaPagamento, VendaRequest, VendaResponse, DespesaCaixa, Caixa, LeituraBalanca } from '../../core/models/models';
+import {
+  Produto, FormaPagamento, VendaRequest, VendaResponse, DespesaCaixa, Caixa, LeituraBalanca,
+  isVendidoPorPeso, gramasParaQuantidadeEstoque, quantidadeEstoqueParaGramas
+} from '../../core/models/models';
+
+/** Incremento (em gramas) dos botões -/+ ao ajustar um produto vendido por peso no carrinho.
+ *  1g permite fechar em qualquer gramatura exata (23g, 24g, 25g...), já que a venda a granel
+ *  raramente cai num valor redondo — o operador também pode digitar o valor direto no campo. */
+const PASSO_GRAMAS = 1;
+const GRAMAS_INICIAIS = 100;
 
 /** Layout do código de barras da etiqueta de balança: 1 dígito indicador ("2") + 5 dígitos de
  *  código do produto + 6 dígitos de valor em centavos + 1 dígito verificador = 13 dígitos. */
@@ -161,7 +170,7 @@ interface ItemCarrinho {
                 <span>Clique em um produto ou bipe o código de barras</span>
               </div>
 
-              <div *ngFor="let item of carrinho; let idx = index" class="cart-item">
+              <div *ngFor="let item of carrinho; let idx = index" class="cart-item" [class.cart-item-peso]="isVendidoPorPeso(item.produto)">
                 <div class="item-details">
                   <div class="item-name">{{ item.produto.nome }}</div>
                   <div class="item-unit-price">
@@ -169,11 +178,32 @@ interface ItemCarrinho {
                   </div>
                 </div>
 
-                <!-- Controles de Quantidade -->
-                <div class="item-qty-controls">
+                <!-- Controles de Quantidade: unidade/pacote/pote (inteiro) -->
+                <div class="item-qty-controls" *ngIf="!isVendidoPorPeso(item.produto)">
                   <button (click)="alterarQuantidade(idx, -1)" class="btn-qty">-</button>
                   <span class="item-qty">{{ item.quantidade }}</span>
                   <button (click)="alterarQuantidade(idx, 1)" class="btn-qty" [disabled]="item.quantidade >= item.produto.estoqueAtual">+</button>
+                </div>
+
+                <!-- Controles de Peso: produto vendido por KG/G, quantidade digitada em gramas -->
+                <div class="item-qty-controls item-qty-peso" *ngIf="isVendidoPorPeso(item.produto)">
+                  <button (click)="incrementarGramas(idx, -PASSO_GRAMAS)" class="btn-qty">-</button>
+                  <div class="peso-input-group">
+                    <input
+                      type="number"
+                      step="1"
+                      min="0"
+                      class="peso-input"
+                      [ngModel]="gramasDoItem(item)"
+                      (ngModelChange)="definirGramasDoItem(idx, $event)"
+                      [name]="'gramas-' + idx"
+                    />
+                    <span class="peso-unidade">g</span>
+                  </div>
+                  <button
+                    (click)="incrementarGramas(idx, PASSO_GRAMAS)"
+                    class="btn-qty"
+                    [disabled]="gramasDoItem(item) >= quantidadeEstoqueParaGramas(item.produto, item.produto.estoqueAtual)">+</button>
                 </div>
 
                 <div class="item-subtotal">
@@ -1198,6 +1228,25 @@ interface ItemCarrinho {
       border: 1px solid var(--border);
     }
 
+    /* Item vendido por peso: os controles de grama exigem mais espaço horizontal
+       do que o stepper de unidade inteira, então o nome quebra para uma linha
+       própria e os controles/subtotal/remover ficam juntos na linha de baixo. */
+    .cart-item.cart-item-peso {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px 8px;
+    }
+
+    .cart-item.cart-item-peso .item-details {
+      flex: 1 1 100%;
+      min-width: 0;
+    }
+
+    .cart-item.cart-item-peso .item-subtotal {
+      margin-left: auto;
+    }
+
     .item-name {
       font-size: 0.85rem;
       font-weight: 700;
@@ -1239,11 +1288,61 @@ interface ItemCarrinho {
       text-align: center;
     }
 
+    .item-qty-peso {
+      gap: 3px;
+    }
+
+    .item-qty-peso .btn-qty {
+      width: 20px;
+      height: 20px;
+      font-size: 0.78rem;
+      flex-shrink: 0;
+    }
+
+    .peso-input-group {
+      display: flex;
+      align-items: center;
+      gap: 1px;
+      flex-shrink: 0;
+    }
+
+    .peso-input {
+      width: 44px;
+      padding: 2px 3px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-align: center;
+      /* remove as setinhas nativas do input number: os botões -/+ já cobrem
+         o ajuste rápido, e a seta consumia parte da largura útil do campo,
+         cortando visualmente números de 3 dígitos (ex: "250"). */
+      -moz-appearance: textfield;
+    }
+
+    .peso-input::-webkit-outer-spin-button,
+    .peso-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .peso-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .peso-unidade {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
     .item-subtotal {
       font-size: 0.9rem;
       font-weight: 800;
       color: var(--text-main);
       text-align: right;
+      white-space: nowrap;
     }
 
     .btn-remove-item {
@@ -1670,6 +1769,11 @@ export class PdvComponent implements OnInit, OnDestroy {
 
   @ViewChild('scannerVideo') scannerVideoRef?: ElementRef<HTMLVideoElement>;
 
+  // Expostos para uso direto no template (funções puras importadas de core/models)
+  readonly isVendidoPorPeso = isVendidoPorPeso;
+  readonly quantidadeEstoqueParaGramas = quantidadeEstoqueParaGramas;
+  readonly PASSO_GRAMAS = PASSO_GRAMAS;
+
   produtos: Produto[] = [];
   produtosFiltrados: Produto[] = [];
   categorias: string[] = [];
@@ -1724,9 +1828,16 @@ export class PdvComponent implements OnInit, OnDestroy {
     this.carregarProdutos();
     this.carregarCategorias();
 
-    if (!this.caixaAberto) {
-      this.abrirModalAbrirCaixa();
-    }
+    // Sempre revalida o estado real do caixa no backend antes de decidir se
+    // pede abertura: usar o valor em cache (`caixaService.aberto`) direto aqui
+    // pode ver um falso "fechado" se essa checagem ainda não tiver retornado,
+    // levando a abrir o modal e depois falhar com "já existe um caixa aberto".
+    this.caixaService.recarregar().subscribe(() => {
+      if (!this.caixaAberto) {
+        this.abrirModalAbrirCaixa();
+      }
+      this.cdr.detectChanges();
+    });
   }
 
   // ==================== CAIXA: ABERTURA ====================
@@ -1961,8 +2072,27 @@ export class PdvComponent implements OnInit, OnDestroy {
   adicionarAoCarrinho(p: Produto): void {
     if (p.estoqueAtual <= 0) return;
 
-    const itemExistente = this.carrinho.find(it => it.produto.id === p.id);
-    if (itemExistente) {
+    const idxExistente = this.carrinho.findIndex(it => it.produto.id === p.id);
+
+    if (isVendidoPorPeso(p)) {
+      if (idxExistente >= 0) {
+        // produto pesável já está no carrinho: soma mais um incremento padrão em gramas
+        this.incrementarGramas(idxExistente, GRAMAS_INICIAIS);
+        return;
+      }
+      const qtdInicial = Math.min(gramasParaQuantidadeEstoque(p, GRAMAS_INICIAIS), p.estoqueAtual);
+      this.carrinho.push({
+        produto: p,
+        quantidade: qtdInicial,
+        precoUnitario: p.precoVenda,
+        subtotal: Math.round(qtdInicial * p.precoVenda * 100) / 100
+      });
+      this.calcularTotais();
+      return;
+    }
+
+    if (idxExistente >= 0) {
+      const itemExistente = this.carrinho[idxExistente];
       if (itemExistente.quantidade < p.estoqueAtual) {
         itemExistente.quantidade += 1;
         itemExistente.subtotal = itemExistente.quantidade * itemExistente.precoUnitario;
@@ -1990,6 +2120,40 @@ export class PdvComponent implements OnInit, OnDestroy {
       item.subtotal = item.quantidade * item.precoUnitario;
       this.calcularTotais();
     }
+  }
+
+  // ==================== ITENS VENDIDOS POR PESO (KG/G) ====================
+
+  /** Peso do item em gramas, para exibição/edição no carrinho (a quantidade
+   *  interna do item continua na unidade de estoque do produto: KG ou G). */
+  gramasDoItem(item: ItemCarrinho): number {
+    return Math.round(quantidadeEstoqueParaGramas(item.produto, item.quantidade));
+  }
+
+  /** Define o peso do item a partir de um valor em gramas digitado pelo operador,
+   *  convertendo para a unidade de estoque do produto e recalculando o subtotal. */
+  definirGramasDoItem(idx: number, gramas: number): void {
+    const item = this.carrinho[idx];
+    if (!item) return;
+
+    const gramasValidas = Math.max(0, Number(gramas) || 0);
+    if (gramasValidas === 0) {
+      this.removerItem(idx);
+      return;
+    }
+
+    const estoqueEmGramas = quantidadeEstoqueParaGramas(item.produto, item.produto.estoqueAtual);
+    const gramasFinais = Math.min(gramasValidas, estoqueEmGramas);
+
+    item.quantidade = gramasParaQuantidadeEstoque(item.produto, gramasFinais);
+    item.subtotal = Math.round(item.quantidade * item.precoUnitario * 100) / 100;
+    this.calcularTotais();
+  }
+
+  incrementarGramas(idx: number, deltaGramas: number): void {
+    const item = this.carrinho[idx];
+    if (!item) return;
+    this.definirGramasDoItem(idx, this.gramasDoItem(item) + deltaGramas);
   }
 
   removerItem(idx: number): void {

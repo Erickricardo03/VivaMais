@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { Observable, catchError, of, tap } from 'rxjs';
 import { Caixa, CategoriaDespesa } from '../models/models';
 import { environment } from '../../../environments/environment';
 
@@ -11,6 +11,12 @@ export class CaixaService {
   private apiUrl = `${environment.apiUrl}/caixa`;
 
   caixaAtual = signal<Caixa | null>(null);
+
+  /** true assim que a primeira consulta ao estado real do caixa (sucesso ou erro)
+   *  retornar do backend. Enquanto for false, `caixaAtual` ainda não reflete o
+   *  estado real e não deve ser usado para decidir se o modal de abertura aparece
+   *  (evita o falso "Fechado" que aparecia antes da primeira resposta chegar). */
+  carregado = signal(false);
 
   constructor(private http: HttpClient) {
     this.carregarCaixaAtual();
@@ -29,10 +35,21 @@ export class CaixaService {
   }
 
   carregarCaixaAtual(): void {
-    this.http.get<Caixa | null>(`${this.apiUrl}/atual`).subscribe({
-      next: (caixa) => this.caixaAtual.set(caixa),
-      error: () => this.caixaAtual.set(null)
-    });
+    this.recarregar().subscribe();
+  }
+
+  /** Busca o estado real do caixa no backend agora (não usa cache) e retorna um
+   *  Observable que emite assim que `caixaAtual`/`carregado` já estão atualizados —
+   *  use antes de decidir mostrar o modal de abertura de caixa, para não confiar
+   *  em um estado ainda não carregado. */
+  recarregar(): Observable<Caixa | null> {
+    return this.http.get<Caixa | null>(`${this.apiUrl}/atual`).pipe(
+      catchError(() => of(null)),
+      tap(caixa => {
+        this.caixaAtual.set(caixa);
+        this.carregado.set(true);
+      })
+    );
   }
 
   abrirCaixa(valorAbertura: number, operador: string): Observable<Caixa> {
